@@ -37,6 +37,9 @@ int RIGHT_PLAY_AREA_WALL;
 // Images
 char BorderChar = '*';
 
+// Sprites
+sprite_id TickerSprite;
+
 // Prototypes
 void DrawBorderBox(void);
 void process(void);
@@ -92,6 +95,30 @@ void DrawBorderBox(void){
 }
 
 
+void displayCountDown(void) {
+    for (int i = 3; i > 0; i--){
+        char Template[] = 
+        /**/          "-------"
+        /**/          "|     |"
+        /**/          "|  %d  |"
+        /**/          "|     |" 
+        /**/          "-------";
+
+        char Output[99];
+        sprintf(Output, Template, i); // Screw Subbing Ints into Strings
+        TickerSprite = sprite_create((SCREEN_WIDTH/2)-3, (SCREEN_HEIGHT/2)-3, 7, 5, Output);    
+        sprite_draw(TickerSprite);
+
+        show_screen();
+        timer_pause(1000);
+    }
+
+    clear_screen();
+    draw_string(SCREEN_WIDTH/2-7, SCREEN_HEIGHT/2, "Try not to Die");
+    show_screen();
+    timer_pause(1000);
+}
+
 // One more time aroud jeeves
 void process(void) {
     clear_screen();
@@ -100,10 +127,7 @@ void process(void) {
     DrawBorderBox();
 }
 
-// Clean up game
 void cleanup(void) {
-    // No likey memory leaky
-    //free(rails);
 }
 
 // Program entry point.
@@ -113,13 +137,15 @@ int main(void) {
 #if defined(AUTO_SAVE_SCREEN)
     auto_save_screen(true);
 #endif
-
     do{
         setup();
+        displayCountDown();
         while ( gameState.gameOver == false ) {
             process();
             show_screen();
             timer_pause(DELAY);
+
+            // You have no clue how much distain I have for timers now
 
             Timer.ms += DELAY;
 
@@ -128,6 +154,7 @@ int main(void) {
                 Timer.ms = 0;
             }
             if (Timer.s >= 60){
+                gameState.gameOver = true;
                 Timer.m += 1;
                 Timer.s = 0;
             }
