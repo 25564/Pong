@@ -4,6 +4,9 @@
 *.obj
 *.elf
 
+#IDE
+.idea
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -31,4 +34,5 @@
 # Debug files
 *.dSYM/
 *.su
+*.txt
 /bin/*

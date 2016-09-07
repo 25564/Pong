@@ -8,7 +8,7 @@
 #define PADDLE_LENGTH 6
 
 // Structs
-typedef struct GameStates{
+typedef struct {
     bool gameOver;
     bool isPaused;
     int level;
@@ -16,62 +16,87 @@ typedef struct GameStates{
     int lives;
 } GameState;
 
-typedef struct Timer {
-    int h; // Probably overkill but I would be pissed if it was what broke it
-    int m;
-    int s;
-    int ms;
+typedef struct {
+    int h; // Hour - Probably overkill but I would be pissed if it was what broke it
+    int m; // Minute
+    int s; // Second
+    int ms;// MilliSecond
 } GameTimer;
 
-GameState gameState = {false,false,0,0,3};
+typedef struct {
+    int height;
+    int x;
+    int y;
+} Paddle;
+
+GameState gameState = {false,false,1,0,3};
 GameTimer Timer = {0,0,0,0};
 
+Paddle RightPaddle = {7, 1, 1};
+Paddle LeftPaddle = {7, 1, 1};
+
 // SCREEN BOUNDARIES
-int SCREEN_WIDTH;
-int SCREEN_HEIGHT;
-int TOP_PLAY_AREA_WALL;
-int BOTTOM_PLAY_AREA_WALL;
-int LEFT_PLAY_AREA_WALL;
-int RIGHT_PLAY_AREA_WALL;
+int ScreenWidth;
+int ScreenHeight;
+int TopPlayWall;
+int BottomPlayWall;
+int LeftPlayAreaWall;
+int RightPlayAreaWall;
 
 // Images
 char BorderChar = '*';
+char BallChar[] = "O";
 
 // Sprites
 sprite_id TickerSprite;
+sprite_id ball;
 
 // Prototypes
 void DrawBorderBox(void);
 void process(void);
-void countdown(void);
+void setup(void);
+int PaddleHeight(void);
+void SetupPaddles(void);
+void MakePaddles(void);
+void displayCountDown(void);
+void checkInputs(void);
+void movePaddle(int);
+void BallBounce(double, double);
 
 // Setup our variables and sprites
 void setup(void) {
-    SCREEN_WIDTH = screen_width()-1;
-    SCREEN_HEIGHT = screen_height()-1;
+    ScreenWidth = screen_width()-1;
+    ScreenHeight = screen_height()-1;
 
-    TOP_PLAY_AREA_WALL = 3;
-    BOTTOM_PLAY_AREA_WALL = SCREEN_HEIGHT-1;
-    LEFT_PLAY_AREA_WALL = 1;
-    RIGHT_PLAY_AREA_WALL = SCREEN_WIDTH-1; 
+    TopPlayWall = 3;
+    BottomPlayWall = ScreenHeight-1;
+    LeftPlayAreaWall = 1;
+    RightPlayAreaWall = ScreenWidth-1;
+
+    SetupPaddles();
+
+    ball = sprite_create(ScreenWidth/2, ScreenHeight/2, 1, 1, BallChar);
+    sprite_turn_to(ball, 0.01, .01);
 }
 
 // Draw screen borders and HUD
 void DrawBorderBox(void){
 
     // Page Borders
-    draw_line(0, 0, SCREEN_WIDTH, 0, BorderChar);
-    draw_line(0, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, BorderChar);
-    draw_line(0, 0, 0, SCREEN_HEIGHT, BorderChar);
-    draw_line(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BorderChar);
+    draw_line(0, 0, ScreenWidth, 0, BorderChar);
+    draw_line(0, ScreenHeight, ScreenWidth, ScreenHeight, BorderChar);
+    draw_line(0, 0, 0, ScreenHeight, BorderChar);
+    draw_line(ScreenWidth, 0, ScreenWidth, ScreenHeight, BorderChar);
 
-    int gutter = (SCREEN_WIDTH+2)/4;
-    draw_line(0, 2, SCREEN_WIDTH, 2, BorderChar);
+    int gutter = (ScreenWidth+2)/4;
+    draw_line(0, 2, ScreenWidth, 2, BorderChar);
 
 
     //Note to self: Find a better way to print int in strings
     //draw_string(2, 1, "Lives:")
     //draw_int(8, 1, 1)
+
+    //investigate: draw_formatted
 
     // This is hopefully large enough?
     char Output[99];
@@ -94,6 +119,35 @@ void DrawBorderBox(void){
     draw_string(2+(gutter*3), 1, Output);
 }
 
+void BallBounce(double x, double y){
+    sprite_back(ball);
+    sprite_turn_to(ball, sprite_dx(ball)*x, sprite_dy(ball)*y);
+}
+
+int PaddleHeight(void) {
+    if (ScreenHeight > 21){
+        return 7;
+    }
+    return((ScreenHeight-(ScreenHeight-3)-1)/2);
+}
+
+void SetupPaddles() {
+    LeftPaddle.height = PaddleHeight();
+    RightPaddle.height = PaddleHeight();
+
+    LeftPaddle.x = 2;
+    RightPaddle.x = ScreenWidth - 2;
+
+    LeftPaddle.y = (ScreenHeight/2)-(PaddleHeight()/2);
+    RightPaddle.y = (ScreenHeight/2)-(PaddleHeight()/2);
+}
+
+void MakePaddles (void) {
+    if (gameState.level > 1) {
+        draw_line(LeftPaddle.x, LeftPaddle.y, LeftPaddle.x, LeftPaddle.y+LeftPaddle.height, '|');
+    }
+    draw_line(RightPaddle.x, RightPaddle.y, RightPaddle.x, RightPaddle.y+RightPaddle.height, '|');
+}
 
 void displayCountDown(void) {
     for (int i = 3; i > 0; i--){
@@ -106,7 +160,7 @@ void displayCountDown(void) {
 
         char Output[99];
         sprintf(Output, Template, i); // Screw Subbing Ints into Strings
-        TickerSprite = sprite_create((SCREEN_WIDTH/2)-3, (SCREEN_HEIGHT/2)-3, 7, 5, Output);    
+        TickerSprite = sprite_create((ScreenWidth/2)-3, (ScreenHeight/2)-3, 7, 5, Output);    
         sprite_draw(TickerSprite);
 
         show_screen();
@@ -114,17 +168,44 @@ void displayCountDown(void) {
     }
 
     clear_screen();
-    draw_string(SCREEN_WIDTH/2-7, SCREEN_HEIGHT/2, "Try not to Die");
+    draw_string(ScreenWidth/2-7, ScreenHeight/2, "Try not to Die");
     show_screen();
     timer_pause(1000);
 }
 
-// One more time aroud jeeves
+void movePaddle(int direction) {
+    int newY = RightPaddle.y + direction;
+    if(newY >= TopPlayWall && (newY + RightPaddle.height) <= BottomPlayWall) {
+        RightPaddle.y = RightPaddle.y + direction;
+    }
+}
+
+void checkInputs(void) {
+    switch (get_char()) {
+        case 'w':
+            movePaddle(-1);
+            break;
+        case 's':
+            movePaddle(1);
+            break;
+        case 'l':
+            gameState.level = (gameState.level == 4) ? 1 : gameState.level + 1;
+        default:
+            break;
+    }
+}
+
+// One more time around jeeves
 void process(void) {
     clear_screen();
 
     //  We will build a wall and make the paddle pay for it.
     DrawBorderBox();
+    checkInputs();
+    MakePaddles();
+
+    sprite_step(ball);
+    sprite_draw(ball);
 }
 
 void cleanup(void) {
@@ -166,9 +247,9 @@ int main(void) {
 
         clear_screen();
 
-        draw_string(SCREEN_WIDTH/2-14, SCREEN_HEIGHT/2, "Game over, play again? (y/n)");
+        draw_string(ScreenWidth/2-14, ScreenHeight/2, "Game over, play again? (y/n)");
         show_screen();
-    }while(wait_char() == 'y');
+    }while(get_char() == 'y');
 
     cleanup();
 
