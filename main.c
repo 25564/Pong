@@ -62,6 +62,7 @@ void displayCountDown(void);
 void checkInputs(void);
 void movePaddle(int);
 void BallBounce(double, double);
+void checkBallCollision(void);
 
 // Setup our variables and sprites
 void setup(void) {
@@ -76,7 +77,7 @@ void setup(void) {
     SetupPaddles();
 
     ball = sprite_create(ScreenWidth/2, ScreenHeight/2, 1, 1, BallChar);
-    sprite_turn_to(ball, 0.01, .01);
+    sprite_turn_to(ball, -0.15, -0.15);
 }
 
 // Draw screen borders and HUD
@@ -150,6 +151,7 @@ void MakePaddles (void) {
 }
 
 void displayCountDown(void) {
+    clear_screen();
     for (int i = 3; i > 0; i--){
         char Template[] = 
         /**/          "-------"
@@ -195,6 +197,40 @@ void checkInputs(void) {
     }
 }
 
+void checkBallCollision(void) {
+    int ballX = sprite_x(ball);
+    int ballY = sprite_y(ball);
+
+    // Wall Collisions
+    if (ballY < TopPlayWall) { // Top
+        BallBounce(1, -1);
+    } else if (ballY >= BottomPlayWall) { // Bottom
+        BallBounce(1, -1);
+    }
+
+    if (gameState.level == 1) {// Level One Left Wall
+        if (ballX < LeftPlayAreaWall) {
+            BallBounce(-1, 1);
+        }
+    } else {
+        // It is impossible for the robot player to miss so why not
+        if (ballX < LeftPlayAreaWall + 1) {
+            BallBounce(-1, 1);
+        }
+    }
+
+    if (ballX >= RightPaddle.x - 1) { // Hit the Paddle
+        if (ballY >= RightPaddle.y + 1 && ballY <= (RightPaddle.y + RightPaddle.height - 1)) {
+            BallBounce(-1, 1);
+        }
+    }
+
+    if (ballX >= RightPlayAreaWall - 1) { // Player screwed up
+        gameState.lives -= 1;
+        setup();
+    }
+}
+
 // One more time around jeeves
 void process(void) {
     clear_screen();
@@ -205,6 +241,18 @@ void process(void) {
     MakePaddles();
 
     sprite_step(ball);
+    checkBallCollision();
+
+    // Bot Paddle
+    if (gameState.level > 1) {
+        LeftPaddle.y = sprite_y(ball) - (LeftPaddle.height/2);
+        if (LeftPaddle.y < TopPlayWall) {
+            LeftPaddle.y = TopPlayWall;
+        } else if (LeftPaddle.y + LeftPaddle.height > BottomPlayWall) {
+            LeftPaddle.y = BottomPlayWall - LeftPaddle.height;
+        }
+    }
+
     sprite_draw(ball);
 }
 
@@ -235,7 +283,6 @@ int main(void) {
                 Timer.ms = 0;
             }
             if (Timer.s >= 60){
-                gameState.gameOver = true;
                 Timer.m += 1;
                 Timer.s = 0;
             }
@@ -249,7 +296,7 @@ int main(void) {
 
         draw_string(ScreenWidth/2-14, ScreenHeight/2, "Game over, play again? (y/n)");
         show_screen();
-    }while(get_char() == 'y');
+    }while(wait_char() == 'y');
 
     cleanup();
 
