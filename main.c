@@ -63,9 +63,9 @@ void checkInputs(void);
 void movePaddle(int);
 void BallBounce(double, double);
 void checkBallCollision(void);
+void EstablishConstants(void);
 
-// Setup our variables and sprites
-void setup(void) {
+void EstablishConstants(void) {
     ScreenWidth = screen_width()-1;
     ScreenHeight = screen_height()-1;
 
@@ -73,7 +73,9 @@ void setup(void) {
     BottomPlayWall = ScreenHeight-1;
     LeftPlayAreaWall = 1;
     RightPlayAreaWall = ScreenWidth-1;
+}
 
+void setup(void) {
     displayCountDown();
 
     SetupPaddles();
@@ -94,32 +96,16 @@ void DrawBorderBox(void){
     int gutter = (ScreenWidth+2)/4;
     draw_line(0, 2, ScreenWidth, 2, BorderChar);
 
-
-    //Note to self: Find a better way to print int in strings
-    //draw_string(2, 1, "Lives:")
-    //draw_int(8, 1, 1)
-
-    //investigate: draw_formatted
-
-    // This is hopefully large enough?
-    char Output[99];
-
-    sprintf(Output, "Lives = %d", gameState.lives);
-    draw_string(2, 1, Output);
-
-    sprintf(Output, "Score = %d", gameState.score);
-    draw_string(2+(gutter), 1, Output);
-
-    sprintf(Output, "Level = %d", gameState.level);
-    draw_string(2+(gutter*2), 1, Output);
+    // Hud Stats
+    draw_formatted(2, 1, "Lives = %d", gameState.lives);
+    draw_formatted(2+(gutter), 1, "Score = %d", gameState.score);
+    draw_formatted(2+(gutter*2), 1, "Level = %d", gameState.level);
 
     if (Timer.s >= 10){
-        sprintf(Output, "Time = %d:%d", Timer.m, Timer.s);
+        draw_formatted(2+(gutter*3), 1, "Time = %d:%d", Timer.m, Timer.s);
     } else {
-        sprintf(Output, "Time = %d:0%d", Timer.m, Timer.s);
+        draw_formatted(2+(gutter*3), 1, "Time = %d:0%d", Timer.m, Timer.s);
     }
-
-    draw_string(2+(gutter*3), 1, Output);
 }
 
 void BallBounce(double x, double y){
@@ -199,6 +185,22 @@ void checkInputs(void) {
     }
 }
 
+void DisplayHelpScreen(void){
+    clear_screen();
+    draw_string(ScreenWidth/2-21, ScreenHeight/2-5, "Cian O'Leary; n9727442; CAB202; 2016 Sem 2");
+    draw_string(ScreenWidth/2-11, ScreenHeight/2-3, "~~ Crappy Pong Game ~~");
+    draw_string(ScreenWidth/2-10, ScreenHeight/2-1, "'l' to change levels");
+    draw_string(ScreenWidth/2-6, ScreenHeight/2, "'r' to reset");
+    draw_string(ScreenWidth/2-12, ScreenHeight/2-1, "'h' to display help text");
+    draw_string(ScreenWidth/2-7, ScreenHeight/2+4, "--- Rules ---");
+    draw_string(ScreenWidth/2-10, ScreenHeight/2+6, "'w' to move paddle up");
+    draw_string(ScreenWidth/2-11, ScreenHeight/2+7, "'s' to move paddle down");
+
+    show_screen();
+    wait_char();
+    clear_screen();
+}
+
 void checkBallCollision(void) {
     int ballX = sprite_x(ball);
     int ballY = sprite_y(ball);
@@ -223,39 +225,39 @@ void checkBallCollision(void) {
 
     if (ballX >= RightPlayAreaWall) { // Player screwed up
         gameState.lives -= 1;
-        setup();
+        if (gameState.lives <= 0){
+            gameState.gameOver = true;
+        } else{
+            setup();
+        }
     }
 
     // Paddle Logic
     if (ballX >= RightPaddle.x - 1 && ballX <= RightPaddle.x){
         // Top of the paddle
-        if (ballY == RightPaddle.y - 1){
-            if (sprite_dy(ball) > 0){ // And if it's coming from above
+        if (ballY == RightPaddle.y){
+            if (sprite_dy(ball) > 0){
                 if (RightPaddle.y - TopPlayWall > 1){
-                    gameState.score += 1;
                     BallBounce(1.0, -1.0);
                 } else {
                     BallBounce(-1.0, -1.0);
                 }
             } else {
-                gameState.score += 1;
                 BallBounce(-1.0, 1.0);
             }
         } else if (ballY>= RightPaddle.y+1 && ballY <= RightPaddle.y + RightPaddle.height - 1){
-            gameState.score += 1;
             BallBounce(-1.0, 1.0);
         } else if (ballY > RightPaddle.y + RightPaddle.height - 1 && ballY <= RightPaddle.y + RightPaddle.height){
-            // And if it's coming from the bottom
+            // Bottom up not middle out.
             if (sprite_dy(ball) < 0){
                 if (BottomPlayWall - (RightPaddle.y+RightPaddle.height) > 1){
-                    gameState.score += 1;
                     BallBounce(-1.0, -1.0);
                 }
             } else {
-                gameState.score += 1;
                 BallBounce(-1.0, 1.0);
             }
         }
+        gameState.score += 1;
     }
 }
 
@@ -294,7 +296,11 @@ int main(void) {
 #if defined(AUTO_SAVE_SCREEN)
     auto_save_screen(true);
 #endif
+
+    EstablishConstants();
+
     do{
+        DisplayHelpScreen();
         setup();
         while ( gameState.gameOver == false ) {
             process();
@@ -320,8 +326,8 @@ int main(void) {
         }        
 
         clear_screen();
-
-        draw_string(ScreenWidth/2-14, ScreenHeight/2, "Game over, play again? (y/n)");
+        draw_string(ScreenWidth/2-12, ScreenHeight/2, "Rip, Want to play again? (y/n)");
+        draw_string(ScreenWidth/2-12, ScreenHeight/2, "Rip, Want to play again? (y/n)");
         show_screen();
     }while(wait_char() == 'y');
 
