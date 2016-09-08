@@ -74,6 +74,8 @@ void setup(void) {
     LeftPlayAreaWall = 1;
     RightPlayAreaWall = ScreenWidth-1;
 
+    displayCountDown();
+
     SetupPaddles();
 
     ball = sprite_create(ScreenWidth/2, ScreenHeight/2, 1, 1, BallChar);
@@ -129,15 +131,15 @@ int PaddleHeight(void) {
     if (ScreenHeight > 21){
         return 7;
     }
-    return((ScreenHeight-(ScreenHeight-3)-1)/2);
+    return((ScreenHeight-3-1)/2);
 }
 
 void SetupPaddles() {
     LeftPaddle.height = PaddleHeight();
     RightPaddle.height = PaddleHeight();
 
-    LeftPaddle.x = 2;
-    RightPaddle.x = ScreenWidth - 2;
+    LeftPaddle.x = LeftPlayAreaWall + 2;
+    RightPaddle.x = RightPlayAreaWall - 2;
 
     LeftPaddle.y = (ScreenHeight/2)-(PaddleHeight()/2);
     RightPaddle.y = (ScreenHeight/2)-(PaddleHeight()/2);
@@ -214,20 +216,46 @@ void checkBallCollision(void) {
         }
     } else {
         // It is impossible for the robot player to miss so why not
-        if (ballX < LeftPlayAreaWall + 1) {
+        if (ballX <= LeftPlayAreaWall + 2) {
             BallBounce(-1, 1);
         }
     }
 
-    if (ballX >= RightPaddle.x - 1) { // Hit the Paddle
-        if (ballY >= RightPaddle.y + 1 && ballY <= (RightPaddle.y + RightPaddle.height - 1)) {
-            BallBounce(-1, 1);
-        }
-    }
-
-    if (ballX >= RightPlayAreaWall - 1) { // Player screwed up
+    if (ballX >= RightPlayAreaWall) { // Player screwed up
         gameState.lives -= 1;
         setup();
+    }
+
+    // Paddle Logic
+    if (ballX >= RightPaddle.x - 1 && ballX <= RightPaddle.x){
+        // Top of the paddle
+        if (ballY == RightPaddle.y - 1){
+            if (sprite_dy(ball) > 0){ // And if it's coming from above
+                if (RightPaddle.y - TopPlayWall > 1){
+                    gameState.score += 1;
+                    BallBounce(1.0, -1.0);
+                } else {
+                    BallBounce(-1.0, -1.0);
+                }
+            } else {
+                gameState.score += 1;
+                BallBounce(-1.0, 1.0);
+            }
+        } else if (ballY>= RightPaddle.y+1 && ballY <= RightPaddle.y + RightPaddle.height - 1){
+            gameState.score += 1;
+            BallBounce(-1.0, 1.0);
+        } else if (ballY > RightPaddle.y + RightPaddle.height - 1 && ballY <= RightPaddle.y + RightPaddle.height){
+            // And if it's coming from the bottom
+            if (sprite_dy(ball) < 0){
+                if (BottomPlayWall - (RightPaddle.y+RightPaddle.height) > 1){
+                    gameState.score += 1;
+                    BallBounce(-1.0, -1.0);
+                }
+            } else {
+                gameState.score += 1;
+                BallBounce(-1.0, 1.0);
+            }
+        }
     }
 }
 
@@ -268,7 +296,6 @@ int main(void) {
 #endif
     do{
         setup();
-        displayCountDown();
         while ( gameState.gameOver == false ) {
             process();
             show_screen();
