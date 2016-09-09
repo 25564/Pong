@@ -130,6 +130,26 @@ void RailsInit(void){
     }
 }
 
+void CheckRailsCollision(void){
+    bool rebound = false;
+    if(gameState.level == 4){
+        for (int i = 0; i < RailsWidth*2; i++){
+            if (rails[i].destroyed == false){
+                if(sprite_x(ball) >= rails[i].x-2 && sprite_x(ball) <= rails[i].x+1){
+                    if(sprite_y(ball) >= rails[i].y-1 && sprite_y(ball) <= rails[i].y){
+                        rails[i].destroyed = true;
+                        rebound = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if(rebound){
+        BallBounce(1.0, -1.0);
+    }
+}
+
 void setup(void) {
     displayCountDown();
 
@@ -339,34 +359,36 @@ void checkBallCollision(void) {
     }
 
     // Paddle Logic
-    if (ballX >= RightPaddle.x - 1 && ballX <= RightPaddle.x){
-        // Top of the paddle
-        if (ballY == RightPaddle.y){
-            if (sprite_dy(ball) > 0){
-                if (RightPaddle.y - TopPlayWall > 1){
-                    gameState.score += 1;
-                    BallBounce(1.0, -1.0);
+    if (ballX != RightPaddle.x+1) {
+        if (ballX >= RightPaddle.x - 1 && ballX <= RightPaddle.x) {
+            // Top of the paddle
+            if (ballY == RightPaddle.y) {
+                if (sprite_dy(ball) > 0) {
+                    if (RightPaddle.y - TopPlayWall > 1) {
+                        gameState.score += 1;
+                        BallBounce(1.0, -1.0);
+                    } else {
+                        gameState.score += 1;
+                        BallBounce(-1.0, -1.0);
+                    }
                 } else {
                     gameState.score += 1;
-                    BallBounce(-1.0, -1.0);
+                    BallBounce(-1.0, 1.0);
                 }
-            } else {
+            } else if (ballY >= RightPaddle.y + 1 && ballY <= RightPaddle.y + RightPaddle.height - 1) {
                 gameState.score += 1;
                 BallBounce(-1.0, 1.0);
-            }
-        } else if (ballY>= RightPaddle.y+1 && ballY <= RightPaddle.y + RightPaddle.height - 1){
-            gameState.score += 1;
-            BallBounce(-1.0, 1.0);
-        } else if (ballY > RightPaddle.y + RightPaddle.height - 1 && ballY <= RightPaddle.y + RightPaddle.height){
-            // Bottom up not middle out.
-            if (sprite_dy(ball) < 0){
-                if (BottomPlayWall - (RightPaddle.y+RightPaddle.height) > 1){
+            } else if (ballY > RightPaddle.y + RightPaddle.height - 1 && ballY <= RightPaddle.y + RightPaddle.height) {
+                // Bottom up not middle out.
+                if (sprite_dy(ball) < 0) {
+                    if (BottomPlayWall - (RightPaddle.y + RightPaddle.height) > 1) {
+                        gameState.score += 1;
+                        BallBounce(-1.0, -1.0);
+                    }
+                } else {
                     gameState.score += 1;
-                    BallBounce(-1.0, -1.0);
+                    BallBounce(-1.0, 1.0);
                 }
-            } else {
-                gameState.score += 1;
-                BallBounce(-1.0, 1.0);
             }
         }
     }
@@ -390,6 +412,7 @@ void process(void) {
 
     updateBall();
     checkBallCollision();
+    CheckRailsCollision();
 
     // Bot Paddle
     if (gameState.level > 1) {
