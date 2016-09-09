@@ -10,7 +10,7 @@
 // Structs
 typedef struct {
     bool gameOver;
-    bool isPaused;
+    int GraviyTimeCount;
     int level;
     int score;
     int lives;
@@ -29,7 +29,7 @@ typedef struct {
     int y;
 } Paddle;
 
-GameState gameState = {false,false,1,0,3};
+GameState gameState = {false,0,1,0,3};
 GameTimer Timer = {0,0,0,0};
 
 Paddle RightPaddle = {7, 1, 1};
@@ -46,10 +46,16 @@ int RightPlayAreaWall;
 // Images
 char BorderChar = '*';
 char BallChar[] = "O";
-
+char BlackHoleChar[] =
+/**/          "\\  !  /"
+/**/          " \\ ! / "
+/**/          "~~ * ~~"
+/**/          " / ! \\ "
+/**/          "/  !  \\";
 // Sprites
 sprite_id TickerSprite;
 sprite_id ball;
+sprite_id BlackHole;
 
 // Prototypes
 void DrawBorderBox(void);
@@ -64,6 +70,8 @@ void movePaddle(int);
 void BallBounce(double, double);
 void checkBallCollision(void);
 void EstablishConstants(void);
+void resetStats(void);
+void updateBall(void);
 
 void EstablishConstants(void) {
     ScreenWidth = screen_width()-1;
@@ -75,12 +83,27 @@ void EstablishConstants(void) {
     RightPlayAreaWall = ScreenWidth-1;
 }
 
+void resetStats(void) {
+    gameState.gameOver = false;
+    gameState.level = 1;
+    gameState.lives = 3;
+    gameState.score = 0;
+    Timer.h = 0;
+    Timer.m = 0;
+    Timer.s = 0;
+    Timer.ms = 0;
+}
+
 void setup(void) {
     displayCountDown();
+
+    gameState.GraviyTimeCount = 0;
 
     SetupPaddles();
 
     ball = sprite_create(ScreenWidth/2, ScreenHeight/2, 1, 1, BallChar);
+    BlackHole = sprite_create(ScreenWidth/2-3, ScreenHeight/2-2, 7, 5, BlackHoleChar);
+
     sprite_turn_to(ball, -0.15, -0.15);
 }
 
@@ -170,6 +193,21 @@ void movePaddle(int direction) {
     }
 }
 
+void DisplayHelpScreen(void){
+    clear_screen();
+    draw_string(ScreenWidth/2-21, ScreenHeight/2-5, "Cian O'Leary; n9727442; CAB202; 2016 Sem 2");
+    draw_string(ScreenWidth/2-11, ScreenHeight/2-3, "~~ Crappy Pong Game ~~");
+    draw_string(ScreenWidth/2-10, ScreenHeight/2-1, "'l' to change levels");
+    draw_string(ScreenWidth/2-12, ScreenHeight/2-2, "'h' to display help text");
+    draw_string(ScreenWidth/2-7, ScreenHeight/2+4, "--- Rules ---");
+    draw_string(ScreenWidth/2-10, ScreenHeight/2+6, "'w' to move paddle up");
+    draw_string(ScreenWidth/2-11, ScreenHeight/2+7, "'s' to move paddle down");
+
+    show_screen();
+    wait_char();
+    clear_screen();
+}
+
 void checkInputs(void) {
     switch (get_char()) {
         case 'w':
@@ -180,25 +218,45 @@ void checkInputs(void) {
             break;
         case 'l':
             gameState.level = (gameState.level == 4) ? 1 : gameState.level + 1;
+        case 'h':
+            //DisplayHelpScreen();
+            break;
         default:
             break;
     }
 }
 
-void DisplayHelpScreen(void){
-    clear_screen();
-    draw_string(ScreenWidth/2-21, ScreenHeight/2-5, "Cian O'Leary; n9727442; CAB202; 2016 Sem 2");
-    draw_string(ScreenWidth/2-11, ScreenHeight/2-3, "~~ Crappy Pong Game ~~");
-    draw_string(ScreenWidth/2-10, ScreenHeight/2-1, "'l' to change levels");
-    draw_string(ScreenWidth/2-6, ScreenHeight/2, "'r' to reset");
-    draw_string(ScreenWidth/2-12, ScreenHeight/2-1, "'h' to display help text");
-    draw_string(ScreenWidth/2-7, ScreenHeight/2+4, "--- Rules ---");
-    draw_string(ScreenWidth/2-10, ScreenHeight/2+6, "'w' to move paddle up");
-    draw_string(ScreenWidth/2-11, ScreenHeight/2+7, "'s' to move paddle down");
+void updateBall(void) {
+    if (gameState.level == 3){
+        gameState.GraviyTimeCount += DELAY;
 
-    show_screen();
-    wait_char();
-    clear_screen();
+        // 5 second delay bytch
+        if (gameState.GraviyTimeCount >= 5000){
+            double rebound_x = 0.002, rebound_y = 0.0002;
+
+            // Sprite ball is accelerating to left
+            if (sprite_x(ball) > sprite_x(BlackHole)){
+                rebound_x = -rebound_x;
+            }
+            // Accelerating down
+            if (sprite_y(ball) > sprite_y(BlackHole)){
+                rebound_y = -rebound_y;
+            }
+
+            double dx = sprite_dx(ball);
+            double dy = sprite_dy(ball);
+
+            // Threshold dx
+            // > 0.1 or < -0.1
+            // it will be the minimum velocity speed it can reach
+            if (((dx > 0) && dx+rebound_x > 0.1) || ((dx < 0) && (dx+rebound_x < -0.1))){
+                sprite_turn_to(ball, dx+rebound_x, dy+rebound_y);
+            }
+        }
+    }
+    else if(gameState.level != 3){
+        gameState.GraviyTimeCount = 0;
+    }
 }
 
 void checkBallCollision(void) {
@@ -238,26 +296,31 @@ void checkBallCollision(void) {
         if (ballY == RightPaddle.y){
             if (sprite_dy(ball) > 0){
                 if (RightPaddle.y - TopPlayWall > 1){
+                    gameState.score += 1;
                     BallBounce(1.0, -1.0);
                 } else {
+                    gameState.score += 1;
                     BallBounce(-1.0, -1.0);
                 }
             } else {
+                gameState.score += 1;
                 BallBounce(-1.0, 1.0);
             }
         } else if (ballY>= RightPaddle.y+1 && ballY <= RightPaddle.y + RightPaddle.height - 1){
+            gameState.score += 1;
             BallBounce(-1.0, 1.0);
         } else if (ballY > RightPaddle.y + RightPaddle.height - 1 && ballY <= RightPaddle.y + RightPaddle.height){
             // Bottom up not middle out.
             if (sprite_dy(ball) < 0){
                 if (BottomPlayWall - (RightPaddle.y+RightPaddle.height) > 1){
+                    gameState.score += 1;
                     BallBounce(-1.0, -1.0);
                 }
             } else {
+                gameState.score += 1;
                 BallBounce(-1.0, 1.0);
             }
         }
-        gameState.score += 1;
     }
 }
 
@@ -271,6 +334,12 @@ void process(void) {
     MakePaddles();
 
     sprite_step(ball);
+
+    if (gameState.level == 3 && gameState.GraviyTimeCount >= 5000){
+        sprite_draw(BlackHole);
+    }
+
+    updateBall();
     checkBallCollision();
 
     // Bot Paddle
@@ -301,6 +370,7 @@ int main(void) {
 
     do{
         DisplayHelpScreen();
+        resetStats();
         setup();
         while ( gameState.gameOver == false ) {
             process();
@@ -326,7 +396,7 @@ int main(void) {
         }        
 
         clear_screen();
-        draw_string(ScreenWidth/2-12, ScreenHeight/2, "Rip, Want to play again? (y/n)");
+        draw_formatted(ScreenWidth/2-8, ScreenHeight/2-2, "Your score was: %d", gameState.score);
         draw_string(ScreenWidth/2-12, ScreenHeight/2, "Rip, Want to play again? (y/n)");
         show_screen();
     }while(wait_char() == 'y');
