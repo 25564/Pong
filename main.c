@@ -29,6 +29,12 @@ typedef struct {
     int y;
 } Paddle;
 
+struct Rail{
+    int x;
+    int y;
+    bool destroyed;
+};
+
 GameState gameState = {false,0,1,0,3};
 GameTimer Timer = {0,0,0,0};
 
@@ -43,9 +49,14 @@ int BottomPlayWall;
 int LeftPlayAreaWall;
 int RightPlayAreaWall;
 
+// Rails
+int RailsWidth;
+struct Rail *rails;
+
 // Images
 char BorderChar = '*';
 char BallChar[] = "O";
+char RailChar = '=';
 char BlackHoleChar[] =
 /**/          "\\  !  /"
 /**/          " \\ ! / "
@@ -72,6 +83,9 @@ void checkBallCollision(void);
 void EstablishConstants(void);
 void resetStats(void);
 void updateBall(void);
+void RailsInit(void);
+void DrawRails(void);
+void CheckRailsCollision(void);
 
 void EstablishConstants(void) {
     ScreenWidth = screen_width()-1;
@@ -94,17 +108,51 @@ void resetStats(void) {
     Timer.ms = 0;
 }
 
+void RailsInit(void){
+    free(rails);
+    rails = malloc(RailsWidth*2*sizeof(*rails));
+
+    int InitialX = ScreenWidth/4;
+    int Y = ScreenHeight/3;
+
+    // Top Track
+    for (int i = 0; i < RailsWidth; i++){
+        rails[i].x = InitialX+i;
+        rails[i].y = Y;
+        rails[i].destroyed = false;
+    }
+
+    // Bottom Track
+    for (int i = RailsWidth; i < RailsWidth*2; i++){
+        rails[i].x = InitialX+i-RailsWidth;
+        rails[i].y = Y*2;
+        rails[i].destroyed = false;
+    }
+}
+
 void setup(void) {
     displayCountDown();
 
     gameState.GraviyTimeCount = 0;
 
+    RailsWidth = (ScreenWidth+1)/2;
+    RailsInit();
     SetupPaddles();
 
     ball = sprite_create(ScreenWidth/2, ScreenHeight/2, 1, 1, BallChar);
     BlackHole = sprite_create(ScreenWidth/2-3, ScreenHeight/2-2, 7, 5, BlackHoleChar);
 
     sprite_turn_to(ball, -0.15, -0.15);
+}
+
+void DrawRails(void){
+    if(gameState.level == 4){
+        for (int i = 0; i < RailsWidth*2; i++){
+            if (rails[i].destroyed == false){
+                draw_char(rails[i].x, rails[i].y, RailChar);
+            }
+        }
+    }
 }
 
 // Draw screen borders and HUD
@@ -330,6 +378,7 @@ void process(void) {
 
     //  We will build a wall and make the paddle pay for it.
     DrawBorderBox();
+    DrawRails();
     checkInputs();
     MakePaddles();
 
